@@ -5,7 +5,7 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const app = express();
 const port = 80;
-// const firstInst = "http://34.135.155.13";
+const firstInst = "http://130.211.210.203";
 
 // Create a MariaDB connection pool
 const pool = mariadb.createPool({
@@ -65,13 +65,13 @@ app.post('/register', async (req, res) => {
     if (conn) conn.release();
     }
     });
-app.post('/register_receive', async (req, res) => {
+app.post('/register-receive', async (req, res) => {
     const name = req.body.name;
     let conn;
     try {
     conn = await pool.getConnection();
     await conn.query('INSERT INTO Users(username) VALUE (?)', [name]);
-    res.redirect('/greeting');
+    // res.redirect('/greeting');
     } catch (err) {
     res.status(500).send(`Error adding customer: ${err}`);
     } finally {
@@ -79,6 +79,23 @@ app.post('/register_receive', async (req, res) => {
     }
 })
 app.post('/clear', async (req, res) => {
+    let conn;
+    try {
+    conn = await pool.getConnection();
+    await conn.query('DELETE FROM Users');
+    const response = await fetch(firstInst + '/clear-receive',{
+        method: 'POST',
+        body: JSON.stringify({})})
+        .then(response => {console.debug(response)})
+        .catch(error => {console.error(error)}) ;
+    res.redirect('/greeting');
+    } catch (err) {
+    res.status(500).send(`Error removing users: ${err}`);
+    } finally {
+    if (conn) conn.release();
+    }
+    });
+app.post('/clear-receive', async (req, res) => {
     let conn;
     try {
     conn = await pool.getConnection();
@@ -91,7 +108,7 @@ app.post('/clear', async (req, res) => {
     }
     });
 app.listen(port, () => {
-    console.log(`Server is running on http://34.29.255.87:${port}`);
+    console.log(`Server is running on http://34.122.56.120:${port}`);
     });
 
 
