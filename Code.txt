@@ -16,6 +16,9 @@ instance = client.instance(instance_id)
 table = instance.table(table_id)
 app = Flask(__name__)
 
+rows = table.read_rows()
+rows.consume_all()
+
 @app.route("/rows")
 def get_rows():
     return str(sum(1 for _ in table.read_rows()))
@@ -26,13 +29,14 @@ def best_bmw():
   for row_key, row in rows.rows.items():
     for fname, cols in row.cells.items():
       e_range = float(cols[b'Electric Range'][0].value.decode('utf-8'))
-      if e_range > 100:
+      make = cols[b'Make'][0].value.decode('utf-8')
+      if e_range > 100 and make == "BMW":
         count += 1
       break
 
-    return str(count)
+  return str(count)
 
-@app.route("/tesla-owner")
+@app.route("/tesla-owners")
 def tesla_owner():
   count = 0
   for row_key, row in rows.rows.items():
