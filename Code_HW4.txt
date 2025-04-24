@@ -1,0 +1,80 @@
+// preprocesses.py
+import pandas as pd
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import split
+df = pd.read_csv('searchLog.csv', header=None)
+
+obj = []
+for line in df.values:
+  term = line[0].replace("searchTerm", "term")
+  term = term.split(':')[1].strip()[1:-1]
+  # print(term)
+  # to_parse = df[1]
+  for parse in line[1].split('~'):
+    url_click = parse.split(':')
+    url = url_click[0].strip()
+    click = url_click[1].strip()
+    obj = obj + [[term, url, click]]
+
+spark = SparkSession.builder.master("local[*]").getOrCreate()
+df = spark.createDataFrame(obj, schema=["term", "url", "clicks"])
+df.write.mode("overwrite").format("json").save("processed_data")
+
+
+//query.py
+import pandas as pd
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import split
+df = pd.read_csv('searchLog.csv', header=None)
+
+obj = []
+for line in df.values:
+  term = line[0].replace("searchTerm", "term")
+  term = term.split(':')[1].strip()[1:-1]
+  # print(term)
+  # to_parse = df[1]
+  for parse in line[1].split('~'):
+    url_click = parse.split(':')
+    url = url_click[0].strip()
+    click = url_click[1].strip()
+    obj = obj + [[term, url, click]]
+
+spark = SparkSession.builder.master("local[*]").getOrCreate()
+df = spark.createDataFrame(obj, schema=["term", "url", "clicks"])
+df.write.mode("overwrite").format("json").save("processed_data")
+
+#TODO: replace city with term
+@app.route("/trends")
+def get_trends(trend_json):
+  trend_dict = json.loads(trend_json)
+  res = df.filter(df.term.like(trend_dict['term'])).select("clicks").groupby().sum().collect()[0][0]
+  out = {"clicks": res}
+  return json.dumps(out)
+
+# /popularity
+@app.route("/popularity")
+def get_pop(pop_json):
+  #TODO: replace city with term
+  pop_dict = json.loads(pop_json)
+  res = df.filter(df.url.like(pop_dict['url'])).select("clicks").groupBy().sum().collect()[0][0]
+  # res = df.filter(df.term.like('Portland')).select("clicks").groupBy().sum().collect()[0][0]
+
+  out = {"clicks": res}
+  return json.dumps(out)
+
+@app.route("/getBestTerms")
+def get_best(best_json):
+  best_json = json.loads(best_json)
+  url_search = df.filter(df.url.like(best_json["website"]))
+
+  tot = url_search.select("clicks").groupBy().sum().collect()[0][0]
+  best_terms = []
+  for entry in url_search.collect():
+    if (entry.clicks/tot) > .05:
+      best_terms.append(entry.term)
+
+  out = {"best_terms": best_terms}
+  return json.dumps(out)
+
+if __name__ == "__main__":
+  app.run(host='0.0.0.0', port=3000)
