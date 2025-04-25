@@ -37,34 +37,51 @@ for line in df.values:
     url_click = parse.split(':')
     url = url_click[0].strip()
     click = url_click[1].strip()
-    obj = obj + [[term, url, click]]
+    obj = obj + [[term, url, int(click)]]
 
 spark = SparkSession.builder.master("local[*]").getOrCreate()
 df = spark.createDataFrame(obj, schema=["term", "url", "clicks"])
-df.write.mode("overwrite").format("json").save("processed_data")
 
+from flask import Flask, request
+import json
+# /results
 #TODO: replace city with term
-@app.route("/trends")
-def get_trends(trend_json):
-  trend_dict = json.loads(trend_json)
+app = Flask(__name__)
+@app.route("/results", methods=['POST'])
+def get_results():
+  term_dict = request.json
+  res = df.filter(df.term.like(term_dict['term'])).select("url", "clicks").orderBy("clicks", ascending=Fa>
+  obj = {}
+  for data in res:
+    obj[data.url] = data.clicks
+
+  # print(obj)
+  out = {"results": obj}
+  return json.dumps(out)
+
+# /trends
+#TODO: replace city with term
+@app.route("/trends", methods=['POST'])
+def get_trends():
+  trend_dict = request.json
   res = df.filter(df.term.like(trend_dict['term'])).select("clicks").groupby().sum().collect()[0][0]
   out = {"clicks": res}
   return json.dumps(out)
 
 # /popularity
-@app.route("/popularity")
-def get_pop(pop_json):
+@app.route("/popularity", methods=['POST'])
+def get_pop():
   #TODO: replace city with term
-  pop_dict = json.loads(pop_json)
+  pop_dict = request.json
   res = df.filter(df.url.like(pop_dict['url'])).select("clicks").groupBy().sum().collect()[0][0]
   # res = df.filter(df.term.like('Portland')).select("clicks").groupBy().sum().collect()[0][0]
 
   out = {"clicks": res}
   return json.dumps(out)
 
-@app.route("/getBestTerms")
-def get_best(best_json):
-  best_json = json.loads(best_json)
+@app.route("/getBestTerms", methods=['POST'])
+def get_best():
+  best_json = request.json
   url_search = df.filter(df.url.like(best_json["website"]))
 
   tot = url_search.select("clicks").groupBy().sum().collect()[0][0]
